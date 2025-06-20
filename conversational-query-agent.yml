@@ -1,0 +1,1022 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for a Bedrock Agent that executes Athena queries against S3-backed databases with Cognito authentication'
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Bedrock Configuration"
+        Parameters:
+          - FoundationModel
+      - Label:
+          default: "User Configuration"
+        Parameters:
+          - UserEmail
+      - Label:
+          default: "Athena Database Configuration"
+        Parameters:
+          - DatabaseName
+          - TableName
+          - DataSourceS3Buckets
+      - Label:
+          default: "S3 Configuration"
+        Parameters:
+          - AthenaQueryResultS3BucketName
+          - CreateAthenaQueryResultS3Bucket
+    ParameterLabels:
+      FoundationModel:
+        default: "Foundation Model"
+      UserEmail:
+        default: "User Email Address"
+      DatabaseName:
+        default: "Database Name"
+      TableName:
+        default: "Table Name"
+      DataSourceS3Buckets:
+        default: "Data Source S3 Buckets"
+      AthenaQueryResultS3BucketName:
+        default: "Athena Query Results S3 Bucket Name"
+      CreateAthenaQueryResultS3Bucket:
+        default: "Create Athena Query Results S3 Bucket"
+
+Parameters:
+  FoundationModel:
+    Type: String
+    Description: 'The Amazon Bedrock Foundation Model to use for the Agent'
+    AllowedValues:
+      - amazon.nova-lite-v1:0
+      - amazon.nova-v1:0
+    Default: amazon.nova-lite-v1:0
+    ConstraintDescription: 'Must be either amazon.nova-lite-v1:0 or amazon.nova-v1:0'
+
+  UserEmail:
+    Type: String
+    Description: 'Email address for the user. Must be a valid email address'
+    AllowedPattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    ConstraintDescription: 'Must be a valid email address'
+
+  DatabaseName:
+    Type: String
+    Description: 'The name of the Athena database (must use S3 as data source)'
+    Default: 'cid-cur'
+    
+  TableName:
+    Type: String
+    Description: 'The name of the Athena table (must use S3 as data source)'
+    Default: 'data'
+    
+  DataSourceS3Buckets:
+    Type: CommaDelimitedList
+    Description: 'S3 bucket names containing the data for Athena queries (comma-separated). Example: my-data-bucket,my-logs-bucket'
+    Default: 'example-data-bucket'
+    
+  AthenaQueryResultS3BucketName:
+    Type: String
+    Description: 'The name of the S3 bucket for Athena query results'
+    Default: 'athena-query-logs-generalized'
+    
+  CreateAthenaQueryResultS3Bucket:
+    Type: String
+    Description: 'Create a new S3 bucket for Athena query results'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+
+Conditions:
+  ShouldCreateS3Bucket: !Equals [!Ref CreateAthenaQueryResultS3Bucket, 'true']
+Resources:
+  # IAM Roles
+  LambdaAthenaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: AthenaS3GlueAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - athena:StartQueryExecution
+                  - athena:GetQueryExecution
+                  - athena:GetQueryResults
+                Resource: '*'
+              - !If
+                - ShouldCreateS3Bucket
+                - Effect: Allow
+                  Action:
+                    - s3:GetBucketLocation
+                    - s3:GetObject
+                    - s3:ListBucket
+                    - s3:PutObject
+                  Resource:
+                    - !Sub 'arn:aws:s3:::${AthenaQueryResultS3BucketName}'
+                    - !Sub 'arn:aws:s3:::${AthenaQueryResultS3BucketName}/*'
+                - Effect: Allow
+                  Action:
+                    - s3:GetBucketLocation
+                    - s3:GetObject
+                    - s3:ListBucket
+                    - s3:PutObject
+                  Resource:
+                    - !Sub 'arn:aws:s3:::${AthenaQueryResultS3BucketName}'
+                    - !Sub 'arn:aws:s3:::${AthenaQueryResultS3BucketName}/*'
+              # Permissions for S3 data source buckets (generalized approach)
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                Resource: !Split
+                  - ','
+                  - !Sub
+                    - 'arn:aws:s3:::${inner}'
+                    - inner: !Join
+                      - ',arn:aws:s3:::'
+                      - !Ref DataSourceS3Buckets
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Split
+                  - ','
+                  - !Sub
+                    - 'arn:aws:s3:::${inner}/*'
+                    - inner: !Join
+                      - '/*,arn:aws:s3:::'
+                      - !Ref DataSourceS3Buckets
+              - Effect: Allow
+                Action:
+                  - glue:GetTable
+                  - glue:GetPartitions
+                  - glue:GetDatabase
+                Resource:
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog'
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}'
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/${DatabaseName}/${TableName}'
+
+  LambdaClockRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  BedrockAgentExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: BedrockAgentCustomPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: AmazonBedrockAgentBedrockFoundationModelPolicy
+                Effect: Allow
+                Action: 
+                  - bedrock:InvokeModel
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${FoundationModel}'
+
+  # S3 Bucket for Athena Query Results
+  AthenaQueryResultsBucket:
+    Type: AWS::S3::Bucket
+    Condition: ShouldCreateS3Bucket
+    Properties:
+      BucketName: !Ref AthenaQueryResultS3BucketName
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+  # Lambda Functions
+  ClockandCalendar:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ClockandCalendar
+      Handler: index.handler
+      Role: !GetAtt LambdaClockRole.Arn
+      Runtime: nodejs22.x
+      Timeout: 100
+      Code:
+        ZipFile: |
+          const get_current_time = (timezone) => {
+              const options = {
+                  timeZone: timezone,
+                  year: 'numeric', month: '2-digit', day: '2-digit',
+                  hour: '2-digit', minute: '2-digit', second: '2-digit',
+                  timeZoneName: 'short'
+              };
+              const formattedTime = new Date().toLocaleString('en-US', options);
+              return formattedTime;
+            };
+            const get_parameter_by_name = (parameters_list, name) => {
+              const result = parameters_list.find(obj => obj.name === name);
+              return result || {value: 'UTC'}; // Return null if the object is not found
+            }
+            module.exports.handler = async (event) => {
+                console.log('event:', event);
+                // Structure of the response for the Bedrock Agent
+                let action_response = {
+                    messageVersion: "1.0",
+                    response: {
+                        actionGroup: event.actionGroup,
+                        function: event.function,
+                        functionResponse: {
+                            responseBody: {
+                                TEXT: {
+                                    body: '',
+                                }
+                            }
+                        },
+                    }
+                }
+            
+                try {
+                    // Get the current time in the specified timezone
+                    const currentTime = get_current_time(get_parameter_by_name(event.parameters || [],'timezone').value);
+                    action_response.response.functionResponse.responseBody.TEXT.body = JSON.stringify({
+                        date: {current_date_time: currentTime},
+                        description: `This is the current date and time in the specified timezone, if no timezone was passed, the default one is UTC. The format used us MM/DD/YYYY HH:MM:SS AM/PM TIMEZONE_NAME`
+                    })
+                    // Return the response in a way that Bedrock agent will understand it
+                    console.log('return: ', JSON.stringify(action_response, null, 2));
+                    return action_response;
+            
+                } catch (error) {
+                    // Corrected error response structure
+                    action_response.response.functionResponse.responseBody.TEXT.body = JSON.stringify({
+                        error: error.message
+                    });
+                    return action_response;
+                }
+            };
+   
+  ClockandCalendarPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ClockandCalendar
+      Principal: bedrock.amazonaws.com
+      SourceArn: !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:agent/${ConversationalQueryAgent}'
+  BuildandRunAthenaQuery:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: BuildandRunAthenaQuery
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaAthenaRole.Arn
+      Runtime: python3.13
+      Timeout: 180
+      Environment:
+        Variables:
+          DATABASE_NAME: !Ref DatabaseName
+          TABLE_NAME: !Ref TableName
+          S3_BUCKET_NAME: !Ref AthenaQueryResultS3BucketName
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import time
+          import os
+          import re
+          from botocore.exceptions import ClientError
+
+          def lambda_handler(event, context):
+              # Log the incoming event
+              print(f"Received event: {json.dumps(event, default=str)}")
+              
+              # Get the action group from the event
+              action_group = event.get('actionGroup', 'default')
+              
+              try:
+                  # Extract query from the event - handle Bedrock Agent format
+                  if isinstance(event, str):
+                      event = json.loads(event)
+                      
+                  # Check different possible locations for the query
+                  query = None
+                  if 'query' in event:
+                      query = event['query']
+                  elif 'body' in event:
+                      body = event['body']
+                      if isinstance(body, str):
+                          body = json.loads(body)
+                      query = body.get('query')
+                  elif 'requestBody' in event:
+                      # Handle the Bedrock Agent format
+                      properties = event['requestBody']['content']['application/json']['properties']
+                      for prop in properties:
+                          if prop['name'] == 'query':
+                              query = prop['value']
+                              break
+                      
+                  print(f"Extracted query: {' '.join(query.split())}")
+
+                  if not query:
+                      return format_response("No query provided. Please provide a valid SQL query.", action_group)
+                      
+                  # Get database and table names from environment variables
+                  actual_database = os.environ.get('DATABASE_NAME', 'default_database')
+                  actual_table = os.environ.get('TABLE_NAME', 'default_table')
+                  
+                  # Replace "sampleDatabase"."sampleTable" with actual values
+                  # Using regex to handle different quote styles and whitespace
+                  query = re.sub(r'"sampleDatabase"\s*\.\s*"sampleTable"', f'"{actual_database}"."{actual_table}"', query)
+                  query = re.sub(r'`sampleDatabase`\s*\.\s*`sampleTable`', f'`{actual_database}`.`{actual_table}`', query)
+                  query = re.sub(r'sampleDatabase\s*\.\s*sampleTable', f'{actual_database}.{actual_table}', query)
+                  
+                  print(f"Modified query with environment variables: {' '.join(query.split())}")
+                  
+                  # SECURITY IMPROVEMENT 1: Query sanitization to prevent dangerous operations
+                  # Check for potentially dangerous SQL operations
+                  dangerous_operations = ['DELETE', 'DROP', 'ALTER', 'TRUNCATE', 'UPDATE', 'INSERT', 'CREATE', 'GRANT', 'REVOKE']
+                  query_upper = query.upper()
+                  
+                  for operation in dangerous_operations:
+                      if re.search(r'\b' + operation + r'\b', query_upper):
+                          error_message = f"Security violation: '{operation}' operations are not allowed in queries"
+                          print(error_message)
+                          return format_response(error_message, action_group)
+                  
+                  # Ensure query is a read-only query (contains SELECT but not other dangerous operations)
+                  # This allows for queries with CTEs, JOINs, and other constructs where SELECT isn't the first word
+                  if 'SELECT' not in query_upper:
+                      error_message = "Security violation: Query must contain a SELECT statement"
+                      print(error_message)
+                      return format_response(error_message, action_group)
+                      
+                  # Additional check to ensure the query is read-only
+                  # This regex pattern looks for common SQL read patterns
+                  read_patterns = [
+                      r'\bSELECT\b',           # Standard SELECT
+                      r'\bWITH\b.*\bSELECT\b', # Common Table Expressions
+                      r'\bFROM\b',             # FROM clause
+                      r'\bJOIN\b'              # JOIN operations
+                  ]
+                  
+                  is_read_query = any(re.search(pattern, query_upper) for pattern in read_patterns)
+                  if not is_read_query:
+                      error_message = "Security violation: Only read-only queries are allowed"
+                      print(error_message)
+                      return format_response(error_message, action_group)
+              
+                  athena_client = boto3.client('athena')
+                  s3_client = boto3.client('s3')
+                  
+                  bucket_name = os.environ.get('S3_BUCKET_NAME', 'athena-query-logs-generalized')
+                  s3_output = f's3://{bucket_name}/'
+                  
+                  try:
+                      s3_client.head_bucket(Bucket=bucket_name)
+                      print(f"Successfully accessed bucket: {bucket_name}")
+                  except ClientError as e:
+                      error_message = f"Bucket access error: {str(e)}"
+                      print(error_message)
+                      return format_response(error_message, action_group)
+                  
+                  # Start query execution
+                  response = athena_client.start_query_execution(
+                      QueryString=query,
+                      QueryExecutionContext={
+                          'Database': actual_database
+                      },
+                      ResultConfiguration={
+                          'OutputLocation': s3_output
+                      }
+                  )
+                  
+                  query_execution_id = response['QueryExecutionId']
+                  print(f"Started query execution with ID: {query_execution_id}")
+                  
+                  # SECURITY IMPROVEMENT 2: Implement timeout mechanism instead of infinite loop
+                  max_execution_time = 180  # Maximum execution time in seconds
+                  start_time = time.time()
+                  
+                  # Wait for query to complete with timeout
+                  while (time.time() - start_time) < max_execution_time:
+                      query_status = athena_client.get_query_execution(QueryExecutionId=query_execution_id)
+                      status = query_status['QueryExecution']['Status']['State']
+                      print(f"Query status: {status}")
+                      
+                      if status == 'SUCCEEDED':
+                          results = athena_client.get_query_results(QueryExecutionId=query_execution_id)
+                          formatted_results = format_results_for_agent(results)
+
+                          # Check if formatted_results is empty or None
+                          if not formatted_results:
+                              formatted_results = "No data found for the specified query criteria"
+
+                          # Include the modified query in the response
+                          response_with_query = f"Modified Query:\n{query}\n\nResults:\n{formatted_results}"
+                          print(f"Response to be returned: {response_with_query}")
+                          return format_response(response_with_query, action_group)
+                      elif status in ['FAILED', 'CANCELLED']:
+                          error_message = query_status['QueryExecution']['Status'].get('StateChangeReason', 'Unknown error')
+                          error_with_query = f"Modified Query:\n{query}\n\nError:\nQuery execution {status.lower()}: {error_message}"
+                          print(f"Error response to be returned: {error_with_query}")
+                          return format_response(error_with_query, action_group)
+                      
+                      # Sleep for a short time before checking again
+                      time.sleep(1)
+                  
+                  # If we reach here, the query execution timed out
+                  athena_client.stop_query_execution(QueryExecutionId=query_execution_id)
+                  error_message = f"Query execution timed out after {max_execution_time} seconds"
+                  print(error_message)
+                  return format_response(f"Modified Query:\n{query}\n\nError:\n{error_message}", action_group)
+                      
+              except Exception as e:
+                  error_message = f"Unexpected error: {str(e)}"
+                  print(error_message)
+                  # Include the query in the error response if available
+                  if query:
+                      error_with_query = f"Modified Query:\n{query}\n\nError:\n{error_message}"
+                      print(f"Error response to be returned: {error_with_query}")
+                      return format_response(error_with_query, action_group)
+                  else:
+                      print(f"Error response to be returned: {error_message}")
+                      return format_response(error_message, action_group)
+
+          def format_results_for_agent(results):
+              try:
+                  print(f"Processing results: {json.dumps(results, default=str)}")
+                  
+                  if 'ResultSet' not in results:
+                      return "No ResultSet found in the query results."
+                  
+                  result_set = results['ResultSet']
+                  
+                  if 'Rows' not in result_set:
+                      return "No Rows found in the ResultSet."
+                  
+                  rows = result_set['Rows']
+                  
+                  if not rows:
+                      return "No data returned by the query."
+                  
+                  # Assuming the first row contains column names
+                  columns = [field['VarCharValue'] for field in rows[0]['Data']]
+                  
+                  # Process data rows
+                  data_rows = []
+                  for row in rows[1:]:  # Skip the header row
+                      row_data = [field.get('VarCharValue', 'NULL') for field in row['Data']]
+                      data_rows.append(dict(zip(columns, row_data)))
+                  
+                  # Format response
+                  response = ""
+                  for i, row in enumerate(data_rows, 1):
+                      response += f"Row {i}:\n"
+                      for column, value in row.items():
+                          response += f"{column}: {value}\n"
+                      response += "\n"
+                  
+                  return response
+
+              except Exception as e:
+                  error_message = f"Error formatting results: {str(e)}"
+                  print(error_message)
+                  print(f"Results received: {results}")
+                  return error_message
+
+          def format_response(message, action_group):
+              """Format the response in a way that Bedrock Agent expects"""
+              response = {
+                  "messageVersion": "1.0",
+                  "response": {
+                      "actionGroup": action_group,
+                      "apiPath": "/execute-query",
+                      "httpMethod": "POST",
+                      "httpStatusCode": 200,
+                      "responseBody": {
+                          "application/json": {
+                              "body": message
+                          }
+                      }
+                  }
+              }
+              print(f"Returning response: {json.dumps(response, default=str)}")
+              return response
+              
+  BuildandRunAthenaQueryPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref BuildandRunAthenaQuery
+      Principal: bedrock.amazonaws.com
+      SourceArn: !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:agent/${ConversationalQueryAgent}'
+  # Bedrock Agent
+  ConversationalQueryAgent:
+    Type: AWS::Bedrock::Agent
+    Properties:
+      AgentName: ConversationalQueryAgent
+      Description: You are an AI agent designed to create and execute CUR (Cost and Usage Report) queries on the "sampleDatabase"."sampleTable" table in Athena.
+      Instruction: |
+        # CUR Query Agent Instructions
+
+        You are an AI agent designed to create and execute CUR (Cost and Usage Report) queries on the "sampleDatabase"."sampleTable" table in Athena. Follow these guidelines:
+
+        ## Date Handling
+        - Call ClockandCalendarActionGroup tool for any date calculation first (Current year, last year, last month, last 5 months, Q1, Quarter 2, last 10 days etc)
+        - First get the current date and then calculate the start and end date by interpreting users question
+        - Use TIMESTAMP for proper date formatting: TIMESTAMP '2024-03-01 00:00:00.000'
+
+        ## Query Construction
+        - Always use exact column names from CUR query column list given below
+        - Do not guess or invent column names
+        - Include bill_payer_account_id and line_item_usage_account_id in all queries
+        - Always use COALESCE for all numeric columns: SUM(COALESCE(line_item_unblended_cost, 0))
+        - ROUND all cost values to 2 decimal places: ROUND(SUM(COALESCE(line_item_unblended_cost, 0)), 2)
+        - When using GROUP BY, always include all non-aggregated columns from SELECT
+        - When using GROUP BY, repeat the full column expression instead of using its alias name
+        - For service-related queries, always use the full official AWS service name with product['product_name']
+
+        ## Cost Types
+        - Use unblended_cost by default
+        - Use blended_cost or amortized cost only when specifically requested
+
+        ## Amortized Cost Calculation
+        IMPORTANT: The discount field is a nested map structure, not a simple numeric field. Use this corrected formula:
+        ```sql
+        SELECT ROUND(SUM(
+          COALESCE(line_item_unblended_cost, 0) 
+          + COALESCE(reservation_amortized_upfront_cost_for_usage, 0) 
+          + COALESCE(reservation_recurring_fee_for_usage, 0)
+          + COALESCE(savings_plan_amortized_upfront_commitment_for_billing_period, 0)
+          + COALESCE(savings_plan_recurring_commitment_for_billing_period, 0)
+          - COALESCE(discount_total_discount, 0)
+        ), 2) AS amortized_cost
+        ```
+        Use discount_total_discount instead of discount in calculations.
+
+        ## Error Prevention
+        - Verify service names with a distinct query first
+        - Always include GROUP BY for non-aggregated columns in SELECT
+        - Handle NULL values with COALESCE in all numeric calculations
+        - Validate query structure before execution
+        - If the query is executed successfully and there are no results then respond with "Query returned no results"
+
+        ## AWS Service Names
+        IMPORTANT: Always use the full official AWS service names in queries:
+        - 'Amazon Elastic Compute Cloud - Compute' for EC2
+        - 'Amazon Simple Storage Service' for S3
+        - 'Amazon Relational Database Service' for RDS
+        - 'Amazon DynamoDB' for DynamoDB
+        - 'AWS Lambda' for Lambda
+        - 'Amazon CloudFront' for CloudFront
+        - 'Amazon Bedrock' for Bedrock
+        - 'Amazon SageMaker' for SageMaker
+        - 'Amazon API Gateway' for API Gateway
+        - 'Amazon CloudWatch' for CloudWatch
+        - 'Amazon GuardDuty' for GuardDuty
+        - 'Amazon Virtual Private Cloud' for VPC (NOT 'Amazon Virtual Private Cloud - VPC')
+
+        MANDATORY: For ANY service not explicitly listed above or if you're uncertain about the exact name:
+        1. ALWAYS run this verification query FIRST:
+        ```sql
+        SELECT DISTINCT product['product_name'] 
+        FROM "sampleDatabase"."sampleTable" 
+        WHERE product['product_name'] LIKE '%Service%'
+        ```
+        2. Replace 'Service' with the relevant service keyword (e.g., 'VPC', 'Lambda', etc.)
+        3. Use the EXACT service name returned by this query
+        4. If multiple names are returned, choose the most relevant one
+        5. NEVER skip this verification step when there's any uncertainty
+
+        ## Sample Query
+        ```sql
+        SELECT 
+          ROUND(SUM(COALESCE(line_item_unblended_cost, 0)), 2) AS total_cost,
+          bill_payer_account_id,
+          line_item_usage_account_id
+        FROM "sampleDatabase"."sampleTable"
+        WHERE line_item_usage_start_date >= TIMESTAMP '2024-03-01 00:00:00.000'
+        AND line_item_usage_end_date <= TIMESTAMP '2024-03-31 23:59:59.000'
+        AND product['product_name'] = 'Amazon Bedrock'
+        GROUP BY bill_payer_account_id, line_item_usage_account_id
+        ```
+
+        ## Response Formatting
+        MANDATORY: Always include ALL of these elements in your INITIAL response, formatted nicely with emojis:
+        - Date Range: [start] to [end]
+        - Cost: $XX.XX
+        - Query: [show the complete SQL query]
+        - Details: [bullet list with emojis]
+
+        IMPORTANT: The query MUST be included in your first response - do not wait for the user to ask for it.
+
+        For Lists:
+        - Use bullet points with relevant emojis
+        - Group similar items
+        - Include clear headers
+        - Maintain consistent spacing
+
+        ## Result Processing
+        IMPORTANT: When processing query results with GROUP BY clauses:
+        1. Identify what the results are grouped by (accounts, services, regions, etc.)
+        2. Label each result row according to its grouping (e.g., "Account ID: [actual_id]" not "Service 1")
+        3. If results are grouped by account IDs, display them as "Account ID: [actual_id]"
+        4. If results contain multiple values (e.g., multiple accounts), show:
+          - The total sum across all groups
+          - Individual breakdowns for each group with proper labels
+        5. Always include all result rows in your response
+        6. Never rename or relabel values without indicating what they actually represent
+        7. Use the ACTUAL values from the query results, not placeholder values
+
+        ## Query Display
+        IMPORTANT: When displaying the query in your response:
+        1. Always show the MODIFIED query that was actually executed against Athena
+        2. DO NOT show the original query with placeholder database/table names
+        3. Display the exact query with the actual database and table names used in execution
+        4. Include the complete query with all clauses and conditions
+        - bill_bill_type: Indicates the type of bill (Anniversary, Purchase, or Refund)
+        - bill_billing_entity: Identifies whether the bill is from AWS or AWS Marketplace
+        - bill_billing_period_end_date: The end date of the billing period in UTC format
+        - bill_billing_period_start_date: The start date of the billing period in UTC format
+        - bill_invoice_id: The unique identifier for the invoice
+        - bill_invoicing_entity: The specific AWS entity that issues the invoice
+        - bill_payer_account_id: The AWS account ID responsible for paying the bill
+        - bill_payer_account_name: The name of the AWS account responsible for paying the bill
+        - cost_category: Contains user-defined cost categorization data
+        - discount: Contains all discount-related information
+        - discount_bundled_discount: The amount of bundled discounts applied
+        - discount_total_discount: The total amount of all discounts applied
+        - identity_line_item_id: Unique identifier for each cost line item
+        - identity_time_interval: The time period the line item covers
+        - line_item_availability_zone: The AWS Availability Zone where the resource was used
+        - line_item_blended_cost: The cost calculated using averaged rates across accounts
+        - line_item_blended_rate: The averaged rate across all accounts in an organization
+        - line_item_currency_code: The currency used for the cost calculations (e.g., USD)
+        - line_item_legal_entity: The AWS legal entity providing the service
+        - line_item_line_item_description: Detailed description of the specific charge
+        - line_item_line_item_type: The type of charge (e.g., Usage, Tax, Credit, Fee)
+        - line_item_net_unblended_cost: The unblended cost after applying credits and refunds
+        - line_item_net_unblended_rate: The unblended rate after applying adjustments
+        - line_item_normalization_factor: The factor used to normalize usage across instance sizes
+        - line_item_normalized_usage_amount: The usage amount after applying normalization
+        - line_item_operation: The specific API operation or action performed
+        - line_item_product_code: The identifier for the AWS service (e.g., AmazonEC2)
+        - line_item_resource_id: The unique identifier of the AWS resource
+        - line_item_tax_type: The type of tax applied to the line item
+        - line_item_unblended_cost: The cost before averaging across accounts
+        - line_item_unblended_rate: The non-averaged rate for the line item
+        - line_item_usage_account_id: The AWS account ID where the usage occurred
+        - line_item_usage_account_name: The name of the account where the usage occurred
+        - line_item_usage_amount: The quantity of the resource consumed
+        - line_item_usage_end_date: The end timestamp of the resource usage
+        - line_item_usage_start_date: The start timestamp of the resource usage
+        - line_item_usage_type: The specific type of usage being measured
+        - pricing_currency: The currency used for pricing calculations
+        - pricing_lease_contract_length: The duration of the lease contract
+        - pricing_offering_class: The class of the service offering
+        - pricing_public_on_demand_cost: The cost calculated at public on-demand rates
+        - pricing_public_on_demand_rate: The public on-demand rate for the service
+        - pricing_purchase_option: The selected purchase option
+        - pricing_rate_code: The code identifying the specific pricing rate
+        - pricing_rate_id: The unique identifier for the pricing rate
+        - pricing_term: The pricing term (e.g., OnDemand, Reserved)
+        - pricing_unit: The unit of measure for pricing
+        - product: Contains all product-specific attributes
+        - reservation_amortized_upfront_cost_for_usage: The prorated upfront reservation cost
+        - reservation_amortized_upfront_fee_for_billing_period: The prorated upfront reservation fee
+        - reservation_availability_zone: The availability zone of the reservation
+        - reservation_effective_cost: The actual cost after applying reservation benefits
+        - reservation_end_time: The end timestamp of the reservation
+        - reservation_modification_status: The status of any reservation modifications
+        - reservation_net_amortized_upfront_cost_for_usage: The net prorated upfront cost
+        - reservation_net_amortized_upfront_fee_for_billing_period: The net prorated upfront fee
+        - reservation_net_effective_cost: The net cost after all adjustments
+        - reservation_net_recurring_fee_for_usage: The net recurring fee
+        - reservation_net_unused_amortized_upfront_fee_for_billing_period: The net unused portion of upfront fee
+        - reservation_net_unused_recurring_fee: The net unused portion of recurring fee
+        - reservation_net_upfront_value: The net upfront value of the reservation
+        - reservation_normalized_units_per_reservation: The normalized units per reservation
+        - reservation_number_of_reservations: The quantity of reservations purchased
+        - reservation_recurring_fee_for_usage: The recurring fee for actual usage
+        - reservation_reservation_a_r_n: The Amazon Resource Name of the reservation
+        - reservation_start_time: The start timestamp of the reservation
+        - reservation_subscription_id: The unique identifier for the reservation subscription
+        - reservation_total_reserved_normalized_units: The total normalized units reserved
+        - reservation_total_reserved_units: The total raw units reserved
+        - reservation_units_per_reservation: The number of units per reservation
+        - reservation_unused_amortized_upfront_fee_for_billing_period: The unused portion of upfront fee
+        - reservation_unused_normalized_unit_quantity: The quantity of unused normalized units
+        - reservation_unused_quantity: The quantity of unused raw units
+        - reservation_unused_recurring_fee: The recurring fee for unused capacity
+        - reservation_upfront_value: The upfront payment amount for the reservation
+        - resource_tags: Contains all resource tagging information
+        - savings_plan_amortized_upfront_commitment_for_billing_period: The prorated upfront commitment
+        - savings_plan_end_time: The end timestamp of the Savings Plan
+        - savings_plan_instance_type_family: The instance family covered by the Savings Plan
+        - savings_plan_net_amortized_upfront_commitment_for_billing_period: The net prorated upfront commitment
+        - savings_plan_net_recurring_commitment_for_billing_period: The net recurring commitment
+        - savings_plan_net_savings_plan_effective_cost: The net effective cost after Savings Plan
+        - savings_plan_offering_type: The type of Savings Plan offering
+        - savings_plan_payment_option: The selected payment option for the Savings Plan
+        - savings_plan_purchase_term: The term length of the Savings Plan
+        - savings_plan_recurring_commitment_for_billing_period: The recurring commitment amount
+        - savings_plan_region: The region of the Savings Plan
+        - savings_plan_savings_plan_a_r_n: The Amazon Resource Name of the Savings Plan
+        - savings_plan_savings_plan_effective_cost: The effective cost after applying Savings Plan
+        - savings_plan_savings_plan_rate: The rate applied under the Savings Plan
+        - savings_plan_start_time: The start timestamp of the Savings Plan
+        - savings_plan_total_commitment_to_date: The total commitment made under the Savings Plan
+        - savings_plan_used_commitment: The amount of commitment utilized
+        - billing_period: The billing period to which the line item belongs
+
+        ### Nested Columns
+        Product nested columns are accessed using product['column_name'] syntax:
+        - product['product_name']: The full name of the AWS service
+        - product['servicecode']: The service code
+        - product['region']: The AWS region
+        - product['instance_type']: The EC2 instance type
+        - product['operation']: The operation performed
+
+        Discount nested columns are accessed using discount['column_name'] syntax:
+        - discount['type']: The type of discount
+        - discount['amount']: The discount amount
+        - discount['description']: Description of the discount
+
+        Cost category nested columns are accessed using cost_category['category_name'] syntax.
+      AutoPrepare: true
+      AgentResourceRoleArn: !GetAtt BedrockAgentExecutionRole.Arn
+      IdleSessionTTLInSeconds: 1800
+      FoundationModel: !Ref FoundationModel
+      ActionGroups:
+        - ActionGroupName: ClockandCalendarActionGroup
+          Description: This action group will get today's date by calling lambda function
+          ActionGroupExecutor: 
+            Lambda: !GetAtt ClockandCalendar.Arn
+          FunctionSchema:
+            Functions: 
+              - Description: If the user provides a city or country to be considered as a time zone, then you should pass the timezone for that location. For example UTC, PST, CST, America/Chicago.
+                Name: GetDateAndTime
+                Parameters: 
+                  timezone:
+                    Description: By default you can assume UTC. If the user provides a city or country to be considered as a time zone, then you should pass the timezone for that location. For example UTC, PST, CST, America/Chicago.
+                    Required: False
+                    Type: string
+                RequireConfirmation: DISABLED
+        - ActionGroupName: BuildandRunAthenaQueryActionGroup
+          Description: Execute Athena queries against S3-backed databases
+          ActionGroupExecutor: 
+            Lambda: !GetAtt BuildandRunAthenaQuery.Arn
+          ApiSchema: 
+            Payload: |
+              {
+                  "openapi": "3.0.0",
+                  "info": {
+                      "title": "Athena Query Executor",
+                      "version": "1.0.0",
+                      "description": "A Lambda function that executes Athena queries against S3-backed databases and returns formatted results."
+                  },
+                  "paths": {
+                      "/execute-query": {
+                          "description": "Endpoint for executing Athena queries on S3-backed data",
+                          "post": {
+                              "summary": "Execute an Athena query",
+                              "description": "Executes a provided SQL query using Amazon Athena against S3-backed databases.\nThe query results are formatted in a human-readable format.\n",
+                              "operationId": "executeAthenaQuery",
+                              "requestBody": {
+                                  "required": true,
+                                  "content": {
+                                      "application/json": {
+                                          "schema": {
+                                              "type": "object",
+                                              "properties": {
+                                                  "query": {
+                                                      "type": "string",
+                                                      "description": "The SQL query to execute"
+                                                  }
+                                              },
+                                              "required": [
+                                                  "query"
+                                              ]
+                                          }
+                                      }
+                                  }
+                              },
+                              "responses": {
+                                  "200": {
+                                      "description": "Query executed successfully",
+                                      "content": {
+                                          "application/json": {
+                                              "schema": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                      "body": {
+                                                          "type": "string",
+                                                          "description": "The formatted query results or error message"
+                                                      }
+                                                  }
+                                              }
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+                      }
+                  },
+                  "components": {
+                      "schemas": {
+                          "AthenaQueryResult": {
+                              "type": "object",
+                              "description": "Internal structure of Athena query results",
+                              "properties": {
+                                  "ResultSet": {
+                                      "type": "object",
+                                      "description": "Contains the query result data",
+                                      "properties": {
+                                          "Rows": {
+                                              "type": "array",
+                                              "description": "Array of result rows including headers",
+                                              "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                      "Data": {
+                                                          "type": "array",
+                                                          "items": {
+                                                              "type": "object",
+                                                              "properties": {
+                                                                  "VarCharValue": {
+                                                                      "type": "string"
+                                                                  }
+                                                              }
+                                                          }
+                                                      }
+                                                  }
+                                              }
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+                      }
+                  }
+              }
+  # Cognito Resources
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: CognitoUserPoolforAthenaQueryApp
+      UsernameAttributes: []  
+      UsernameConfiguration: 
+        CaseSensitive: false
+      AliasAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Mutable: true
+          Required: false
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+        InviteMessageTemplate:
+          EmailMessage: "Your username is {username}, your temporary password is {####} and you'll be asked to change it at first login."
+          EmailSubject: "Your AthenaQuery App temporary password"
+      AutoVerifiedAttributes:
+        - email
+      EmailConfiguration:
+        EmailSendingAccount: COGNITO_DEFAULT
+      UserPoolAddOns:
+        AdvancedSecurityMode: ENFORCED
+
+  AthenaQueryGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    DependsOn: CognitoUserPool
+    Properties:
+      GroupName: AthenaQuery
+      UserPoolId: !Ref CognitoUserPool
+
+  AthenaQueryUser:
+    Type: AWS::Cognito::UserPoolUser
+    DependsOn: AthenaQueryGroup
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+      Username: !Select [0, !Split ["@", !Ref UserEmail]]
+      UserAttributes:
+        - Name: email
+          Value: !Ref UserEmail
+      DesiredDeliveryMediums:
+        - EMAIL
+
+  AthenaQueryUserGroupAttachment:
+    Type: AWS::Cognito::UserPoolUserToGroupAttachment
+    DependsOn: AthenaQueryUser
+    Properties:
+      GroupName: !Ref AthenaQueryGroup
+      Username: !Select [0, !Split ["@", !Ref UserEmail]]
+      UserPoolId: !Ref CognitoUserPool
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: AthenaQueryApp
+      UserPoolId: !Ref CognitoUserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_PASSWORD_AUTH
+        
+  CognitoIdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    DependsOn: UserPoolClient
+    Properties:
+      IdentityPoolName: cognito-identity-pool-athenaquery
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders: 
+        - ClientId: !Ref UserPoolClient
+          ProviderName: !GetAtt CognitoUserPool.ProviderName
+          
+  # IAM Role for authenticated users
+  CognitoAuthenticatedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                'cognito-identity.amazonaws.com:aud': !Ref CognitoIdentityPool
+              'ForAnyValue:StringLike':
+                'cognito-identity.amazonaws.com:amr': authenticated
+      Policies:
+        - PolicyName: CognitoBedrockAgentAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: VisualEditor0
+                Effect: Allow
+                Action: bedrock:InvokeAgent
+                Resource: !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:agent-alias/${ConversationalQueryAgent}/TSTALIASID'
+                
+  # Identity Pool Role Attachment
+  IdentityPoolRoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId: !Ref CognitoIdentityPool
+      Roles:
+        authenticated: !GetAtt CognitoAuthenticatedRole.Arn
+
+Outputs:
+  UserPoolId:
+    Description: Amazon Cognito User Pool ID 
+    Value: !Ref CognitoUserPool
+  UserPoolClientId:
+    Description: Amazon Cognito User Pool Client ID
+    Value: !Ref UserPoolClient
+  IdentityPoolId:
+    Description: Amazon Cognito Identity Pool ID
+    Value: !Ref CognitoIdentityPool
+  BedrockAgentName:
+    Description: Amazon Bedrock Agent Name
+    Value: ConversationalQueryAgent
+  BedrockAgentId:
+    Description: Amazon Bedrock Agent ID
+    Value: !Ref ConversationalQueryAgent
+  BedrockAgentAliasId:
+    Description: Amazon Bedrock Agent Alias ID
+    Value: TSTALIASID
+  AWSRegion:
+    Description: AWS Region
+    Value: !Ref 'AWS::Region'
+  Username:
+    Description: Username for a Athena Group User
+    Value: !Select [0, !Split ["@", !Ref UserEmail]]
+  DataSourceS3Buckets:
+    Description: S3 buckets configured for data source access
+    Value: !Join [',', !Ref DataSourceS3Buckets]
