@@ -1,16 +1,16 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: 'Modified CUR Crawler CloudFormation template with parameterized S3 bucket and custom database/table names'
+Description: 'CUR Crawler CloudFormation template - Simplified version without table discovery'
 
 Parameters:
   S3BucketName:
     Type: String
     Description: 'Name of the S3 bucket containing CUR data'
-    Default: 'salmanah-cur'
+    Default: 'your-cur-bucket-name'
     
   S3BucketPath:
     Type: String
     Description: 'S3 path/prefix where CUR data is stored (without s3:// prefix and bucket name)'
-    Default: 'qcur/MyCostReport/MyCostReport'
+    Default: 'cur-prefix/cur-report-name/data'
     
   CURReportName:
     Type: String
@@ -132,7 +132,7 @@ Resources:
     DependsOn: AWSCURCrawler
     Properties:
       Code:
-        ZipFile: !Sub |
+        ZipFile: >
           const { GlueClient, StartCrawlerCommand } = require('@aws-sdk/client-glue');
           const response = require('./cfn-response');
           exports.handler = function (event, context, callback) {
@@ -140,8 +140,9 @@ Resources:
               response.send(event, context, response.SUCCESS);
             } else {
               const glue = new GlueClient();
+              const crawlerName = event.ResourceProperties.CrawlerName;
               const input = {
-                Name: 'AWSCURCrawler-${CURReportName}',
+                Name: crawlerName,
               };
               const command = new StartCrawlerCommand(input);
               glue.send(command, function (err, data) {
@@ -179,6 +180,7 @@ Resources:
     Type: 'Custom::AWSStartCURCrawler'
     Properties:
       ServiceToken: !GetAtt AWSCURInitializer.Arn
+      CrawlerName: !Sub 'AWSCURCrawler-${CURReportName}'
 
   AWSS3CUREventLambdaPermission:
     Type: AWS::Lambda::Permission
@@ -317,6 +319,12 @@ Outputs:
     Export:
       Name: !Sub '${AWS::StackName}-GlueDatabaseName'
       
+  CURStatusTableName:
+    Description: 'Name of the CUR status table in Glue/Athena'
+    Value: !Ref AWSCURReportStatusTable
+    Export:
+      Name: !Sub '${AWS::StackName}-CURStatusTableName'
+      
   S3BucketLocation:
     Description: 'S3 location being crawled'
     Value: !Sub 's3://${S3BucketName}/${S3BucketPath}'
@@ -328,3 +336,13 @@ Outputs:
     Value: !Ref AWSCURCrawler
     Export:
       Name: !Sub '${AWS::StackName}-CrawlerName'
+      
+  ExpectedCURTableName:
+    Description: 'Expected CUR table name (verify manually in Glue console after crawler runs)'
+    Value: 'data'
+    Export:
+      Name: !Sub '${AWS::StackName}-ExpectedCURTableName'
+      
+  ManualVerificationInstructions:
+    Description: 'How to find the actual table name'
+    Value: 'Check AWS Glue Console -> Databases -> conv_query_cur2 -> Tables (exclude cost_and_usage_data_status)'
