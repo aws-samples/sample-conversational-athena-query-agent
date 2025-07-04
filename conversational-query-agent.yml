@@ -651,6 +651,8 @@ Resources:
         2. DO NOT show the original query with placeholder database/table names
         3. Display the exact query with the actual database and table names used in execution
         4. Include the complete query with all clauses and conditions
+
+        ## CUR Query Column List
         - bill_bill_type: Indicates the type of bill (Anniversary, Purchase, or Refund)
         - bill_billing_entity: Identifies whether the bill is from AWS or AWS Marketplace
         - bill_billing_period_end_date: The end date of the billing period in UTC format
