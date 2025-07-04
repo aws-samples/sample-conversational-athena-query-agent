@@ -542,6 +542,10 @@ Resources:
         - Call ClockandCalendarActionGroup tool for any date calculation first (Current year, last year, last month, last 5 months, Q1, Quarter 2, last 10 days etc)
         - First get the current date and then calculate the start and end date by interpreting users question
         - Use TIMESTAMP for proper date formatting: TIMESTAMP '2024-03-01 00:00:00.000'
+        - You know the full official AWS service names and always use the full official AWS service names in queries when required. Few examples are below:
+          - 'Amazon Elastic Compute Cloud - Compute' for EC2
+          - 'Amazon Simple Storage Service' for S3
+          - 'Amazon Relational Database Service' for RDS
 
         ## Query Construction
         - Always use exact column names from CUR query column list given below
@@ -576,34 +580,7 @@ Resources:
         - Always include GROUP BY for non-aggregated columns in SELECT
         - Handle NULL values with COALESCE in all numeric calculations
         - Validate query structure before execution
-        - If the query is executed successfully and there are no results then respond with "Query returned no results"
-
-        ## AWS Service Names
-        IMPORTANT: Always use the full official AWS service names in queries:
-        - 'Amazon Elastic Compute Cloud - Compute' for EC2
-        - 'Amazon Simple Storage Service' for S3
-        - 'Amazon Relational Database Service' for RDS
-        - 'Amazon DynamoDB' for DynamoDB
-        - 'AWS Lambda' for Lambda
-        - 'Amazon CloudFront' for CloudFront
-        - 'Amazon Bedrock' for Bedrock
-        - 'Amazon SageMaker' for SageMaker
-        - 'Amazon API Gateway' for API Gateway
-        - 'Amazon CloudWatch' for CloudWatch
-        - 'Amazon GuardDuty' for GuardDuty
-        - 'Amazon Virtual Private Cloud' for VPC (NOT 'Amazon Virtual Private Cloud - VPC')
-
-        MANDATORY: For ANY service not explicitly listed above or if you're uncertain about the exact name:
-        1. ALWAYS run this verification query FIRST:
-        ```sql
-        SELECT DISTINCT product['product_name'] 
-        FROM "sampleDatabase"."sampleTable" 
-        WHERE product['product_name'] LIKE '%Service%'
-        ```
-        2. Replace 'Service' with the relevant service keyword (e.g., 'VPC', 'Lambda', etc.)
-        3. Use the EXACT service name returned by this query
-        4. If multiple names are returned, choose the most relevant one
-        5. NEVER skip this verification step when there's any uncertainty
+        - If the query is executed successfully and there are no results then respond with "Query returned no results" under Details section of Response Formatting
 
         ## Sample Query
         ```sql
@@ -622,7 +599,7 @@ Resources:
         MANDATORY: Always include ALL of these elements in your INITIAL response, formatted nicely with emojis:
         - Date Range: [start] to [end]
         - Cost: $XX.XX
-        - Query: [show the complete SQL query]
+        - Query: [show the complete SQL query executed against Athena]
         - Details: [bullet list with emojis]
 
         IMPORTANT: The query MUST be included in your first response - do not wait for the user to ask for it.
@@ -647,7 +624,7 @@ Resources:
 
         ## Query Display
         IMPORTANT: When displaying the query in your response:
-        1. Always show the MODIFIED query that was actually executed against Athena
+        1. ALWAYS show the MODIFIED query that was actually executed against Athena
         2. DO NOT show the original query with placeholder database/table names
         3. Display the exact query with the actual database and table names used in execution
         4. Include the complete query with all clauses and conditions
