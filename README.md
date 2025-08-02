@@ -257,6 +257,21 @@ You can enter information with the values you collected from the CloudFormation 
 
 You need to sign in with your username and password. A temporary password was automatically generated during deployment and sent to the email address you provided when launching the CloudFormation template. At first sign-in attempt, you will be asked to reset your password.
 
+### Adapting the Solution for Other S3-Backed Athena Databases
+
+While this solution is specifically designed for AWS Cost and Usage Report (CUR) 2.0 data, it can be easily adapted for any S3-backed Athena database by modifying key sections in the Amazon Bedrock agent instructions:
+
+* Replace the entire "CUR Query Column List" section (which contains all the CUR-specific column definitions like bill_payer_account_id, line_item_unblended_cost, etc.) with your own table's column names and descriptions.
+
+* Modify the "AWS Service Names" section to reflect the specific services or categories relevant to your data domain or remove it entirely if not applicable.
+
+* Update the "Sample Query" section to demonstrate queries appropriate for your data structure and use cases.
+
+* Adjust the "Cost Types" and "Amortized Cost Calculation" sections if your data doesn't involve financial calculations, replacing them with domain-specific calculation logic relevant to your dataset.
+
+The core query construction principles, date handling, error prevention, and response formatting sections can remain largely unchanged as they provide universal best practices for Athena querying through conversational AI. 
+
+
 ### Clean up
 
 If you decide to discontinue using the ConversationalQueryAgent application, you can follow these steps to remove it, its associated resources deployed using AWS CloudFormation, and the Amplify deployment:
