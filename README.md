@@ -70,7 +70,7 @@ Key features of the solution include:
 
 The architecture displayed in the following diagram uses several AWS services to create a scalable, secure, and efficient natural language data interface:
 
-![athena_conversational_interface_architecture](assets/athena_conversational_interface_architecture.jpg)
+![conversational_athena_query_architecture](assets/conversational_query_agent_reference_architecture.jpg)
 *Figure 1. Reference Architecture of Conversational Natural Language Interface for Amazon Athena*
 
 <u>Architecture Workflow</u>:
