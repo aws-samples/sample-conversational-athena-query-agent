@@ -164,11 +164,11 @@ You must have the following in place to complete the solution in this post:
 
 ### AWS CUR 2.0 set up
 
-**Create a CUR 2.0 report:**
+**[Create a CUR 2.0 report](https://docs.aws.amazon.com/cur/latest/userguide/what-is-data-exports.html):**
 Wait for the first report to be delivered to your Amazon S3 bucket. It can take up to 24 hours for AWS to deliver your first report.
 
 **Athena integration to CUR 2.0:**
-The CloudFormation template cur2-glue-athena-integration is designed to automate the integration of CUR 2.0 report with Athena. The AWS CloudFormation template includes an AWS Glue crawler, an AWS Glue database, and an AWS Lambda event. During the CloudFormation template deployment, you will need to specify the following required parameters:
+The CloudFormation template [cur2-glue-athena-integration](deployment/cur2-glue-athena-integration.yml) is designed to automate the integration of CUR 2.0 report with Athena. The AWS CloudFormation template includes an AWS Glue crawler, an AWS Glue database, and an AWS Lambda event. During the CloudFormation template deployment, you will need to specify the following required parameters:
 
 * CURReportName – Name of the CUR 2.0 report created
 * S3BucketName – Destination S3 bucket name for CUR 2.0 report
@@ -179,9 +179,14 @@ After the CloudFormation template deployment, copy the following from the Output
 * GlueDatabaseName
 * ExpectedCURTableName
 
+The following screenshot shows you what the Outputs tab will look like.
+
+![output-cfn_cur2-glue-athena-integration](assets/output-cfn_cur2-glue-athena-integration.jpg)
+*Figure 2. Output of CloudFormation cur2-glue-athena-integration Template*
+
 ### Deploy solution resources using AWS CloudFormation
 
-This CloudFormation template conversational-query-agent is designed to run in the us-east-1 Region. If you deploy in a different Region, you must configure cross-Region inference profiles to have proper functionality and update the CloudFormation template accordingly.
+This CloudFormation template [conversational-query-agent](deployment/conversational-query-agent.yml) is designed to run in the us-east-1 Region. If you deploy in a different Region, you must configure cross-Region [inference profiles](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-create.html) to have proper functionality and update the CloudFormation template accordingly.
 
 During the CloudFormation template deployment, you will need to specify the following required parameters:
 
@@ -222,11 +227,16 @@ After the CloudFormation template deployment, copy the following from the **Outp
 * UserPoolClientId
 * UserPoolId
 
+The following screenshot shows you what the Outputs tab will look like.
+
+![output-conversational-query-agent](assets/output-cfn_conversational-query-agent.jpg)
+*Figure 3. Output of CloudFormation conversational-query-agent Template*
+
 ### Deploy the Amplify application
 
 You need to manually deploy the Amplify application using the frontend code found on GitHub. Complete the following steps:
 
-1. Download the frontend code AWS-Amplify-Frontend.zip from GitHub.
+1. Download the frontend code AWS-Amplify-Frontend.zip from [GitHub](deployment/AWS-Amplify-Frontend.zip).
 2. Use the .zip file to manually [deploy](https://docs.aws.amazon.com/amplify/latest/userguide/manual-deploys.html) the application in Amplify.
 3. Return to the Amplify page and use the domain it automatically generated to access the application.
 
@@ -333,9 +343,9 @@ AWS products or services are provided "as is" without warranties, representation
 AWS responsibilities and liabilities to its customers are controlled by AWS agreements, and this solution is not part of, nor does it modify, any agreement between AWS and its customers.
 
 ## Authors
-- [Author Name], [Title]
-- [Author Name], [Title]
-- [Author Name], [Title]
+- Ravi Kumar, Sr. TAM
+- Salman Ahmed, Sr. TAM
+- Sergio Barraza, Sr. TAM
 
 ## License
 
