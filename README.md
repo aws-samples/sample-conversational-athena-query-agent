@@ -36,50 +36,38 @@ What makes Amazon Nova particularly powerful for our Athena query solution is it
 
 The Amazon Nova family’s combination of sophisticated features and competitive pricing makes it an ideal choice for businesses looking to bridge the gap between technical data systems and non-technical users.
 
-In this post, we explore an innovative solution that uses Amazon Bedrock Agents, powered by Amazon Nova Lite, to create a conversational interface for Athena queries. We use AWS Cost and Usage Reports (AWS CUR) as an example, but this solution can be adapted for other databases you query using Athena. This approach democratizes data access while preserving the powerful analytical capabilities of Athena, so you can interact with your data using natural language.
+In this post, we explore an innovative solution that uses Amazon Bedrock Agents, powered by Amazon Nova Lite, to create a conversational interface for Athena queries. We use [AWS Cost and Usage Reports](https://docs.aws.amazon.com/cur/latest/userguide/what-is-cur.html) (AWS CUR) as an example, but this solution can be adapted for other databases you query using Athena. This approach democratizes data access while preserving the powerful analytical capabilities of Athena, so you can interact with your data using natural language.
 
 ## Solution overview
 
-Our conversational natural language interface for Amazon Athena creates an intuitive bridge between business users and complex data analytics. The solution transforms natural language questions into SQL queries, executes them against Amazon Athena, and presents results in a user-friendly format.
+The architecture combines several AWS services to transform natural language questions into precise Athena queries for AWS CUR. Users can interact with their data using everyday language, automatically generating and executing appropriate SQL queries. Amazon Bedrock Agents, with Amazon Nova Lite as the FM, serves as the intelligent layer that maintains context throughout the conversation, handles query refinements, and facilitates accurate data retrieval. A key component of the solution is the conversational query agent – an Amazon Bedrock agent powered by Amazon Nova Lite that translates natural language into Athena SQL queries.
 
-The core architecture consists of several key components:
+The agent integration with Athena supports seamless data exploration through natural conversations, with a streamlined architecture that supports efficient query processing. Other key features of the solution include:
 
-* **Natural Language Processing Agent** – Uses Amazon Nova to understand user intent, convert natural language questions into SQL queries, execute them via Amazon Athena, and format responses
-* **Web Interface** – Provides a chat-like interface for users to interact with their data using natural language
+* Secure user authentication through [Amazon Cognito](https://aws.amazon.com/cognito/) with [role-based access control](https://docs.aws.amazon.com/cognito/latest/developerguide/role-based-access-control.html)
+* Frontend application hosted on [AWS Amplify](https://aws.amazon.com/amplify/)
+* Real-time query processing and result visualization
+* Natural language to SQL query transformation
+* Context-aware conversation management
 
-Key features of the solution include:
-
-* **Intuitive conversational interface** – Users can ask questions in plain English without SQL knowledge
-* **Intelligent query generation** – Amazon Nova translates natural language into optimized SQL queries
-* **Real-time data insights** – Immediate access to data stored in Amazon S3 through Amazon Athena
-* **Context-aware responses** – The system maintains conversation context for follow-up questions
-* **Secure data access** – Built-in authentication and authorization controls
-* **Cost-effective analytics** – Serverless architecture that scales with usage
-
-The architecture displayed in the following diagram uses several AWS services to create a scalable, secure, and efficient natural language data interface:
+The architecture shown in the following diagram demonstrates how we’ve built a secure, scalable system for conversational data queries using several AWS services, including [AWS Lambda](https://aws.amazon.com/lambda/) functions.
 
 ![conversational_athena_query_architecture](assets/conversational_query_agent_reference_architecture.jpg)
 *Figure 1. Reference Architecture of Conversational Natural Language Interface for Amazon Athena*
 
-<u>Architecture Workflow</u>:
+The workflow consists of the following steps:
 
-1. The Administrator User deploys the solution to AWS Account and Region using an AWS CloudFormation Template.
-The Base AWS CloudFormation stack will deploy and create all of the AWS resources needed to host the solution. This includes Amazon Cognito User group and user, Amazon Bedrock Agent, AWS Lambda Functions, AWS Identity and Access Management (IAM) roles and AWS STS token.
-2. The user navigates to the Conversational Interface UI URL
-3. Conversational Interface application is hosted on AWS Amplify
-4. The web page is returned with HTML, CSS, JavaScript. User is now able to input the configuration details for Amazon Cognito and Amazon Bedrock Agent
-5. Upon configuration completion, the user is prompted to authenticate using Amazon Cognito with a username and password configured for them in the user pool
-6. After successful authentication, Cognito Identity Pool will negotiate temporary credentials from AWS Simple Token Service (STS)
-7. Cognito Identity Pool passes temporary AWS credentials to the Conversational Interface UI
-8. Once authenticated, the user now sees the Conversational Interface UI chat prompt to interact with the Amazon Bedrock Agent that is configured
-9. The Natural Language Processing Agent evaluates each User's question and converts it into appropriate SQL queries for Amazon Athena
-10. The agent reviews its predefined set of actions to identify the correct procedure for answering the user's question and generating the SQL query
-11. The action groups execute their respective AWS Lambda functions to interact with Amazon Athena, executing the generated SQL queries against data stored in Amazon S3
-12. The Natural Language Processing Agent compiles the query results and formats them into a natural language response, sending it back to the Conversational Interface UI visible to the User
+1. Users interact with a web interface built using HTML, CSS, and JavaScript, hosted on Amplify.
+2. Authentication is handled through Amazon Cognito, which verifies user identities and provides temporary AWS credentials from its identity pool.
+3. After users are authenticated, they can send natural language queries through the interface.
+4. Our conversational query agent, powered by Amazon Bedrock with Amazon Nova Lite, processes these queries with support from two key action groups:
+* A Clock and Calendar action group that provides temporal context.
+* A Build and Run Athena Query action group that handles query execution.
+5. When a user submits a query, Amazon Nova Lite transforms it into SQL, which is then passed to the appropriate Lambda function.
+6. The Lambda function, operating with the necessary [AWS Identity and Access Management](https://aws.amazon.com/iam/) (IAM) roles, executes the SQL query in Athena.
+7. Athena processes the query against data cataloged in [AWS Glue](https://aws.amazon.com/glue), retrieving results that are then formatted and returned to the user through the same conversational interface.
 
-In the following sections, we dive deeper into the architecture of our solution, explore the capabilities of the agent, and discuss the potential impact of this approach on data analytics strategies.
-
-This approach democratizes data access by removing technical barriers while maintaining the power and flexibility of Amazon Athena for complex analytics workloads.
+This architecture provides secure, efficient query processing while maintaining a simple, conversation-like experience for users. The system scales automatically and maintains security through role-based access controls and secure credential management.
 
 ## AWS services in this solution
 
