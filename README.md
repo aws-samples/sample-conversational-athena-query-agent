@@ -26,29 +26,17 @@
 
 ## Overview
 
-Data analytics has become increasingly critical for organizations to make informed business decisions. However, the complexity of SQL queries and the technical expertise required to interact with data warehouses often creates barriers for business users who need quick access to insights. [Amazon Athena](https://aws.amazon.com/athena/) provides a serverless, interactive query service that makes it easy to analyze data in Amazon S3 using standard SQL, but many business users still struggle with writing complex queries.
+Data analysis often presents significant challenges for business users who aren’t proficient in [SQL](https://aws.amazon.com/what-is/sql/). Traditional methods require technical expertise to query databases, leading to delayed insights and dependence on data teams. Many organizations struggle with making their data accessible to business users while maintaining the analytical capabilities of [Amazon Athena](https://aws.amazon.com/athena/).
 
-This solution demonstrates how to build a conversational natural language interface that allows users to interact with Amazon Athena using plain English questions. By leveraging the power of [Amazon Nova](https://aws.amazon.com/ai/generative-ai/nova/), AWS's next-generation foundation model, users can ask questions in natural language and receive both SQL queries and formatted results without needing to understand SQL syntax.
+Modern AI agents are transforming how businesses work with their data by creating natural conversations between people and machines. Instead of learning complex SQL commands, users can simply ask questions in plain English. [Amazon Bedrock Agents](https://aws.amazon.com/bedrock/agents/) makes this possible by using [foundation models](https://aws.amazon.com/what-is/foundation-models/) (FMs) that can understand human language, work with various data sources, and perform specific tasks automatically. With these tools, business users can get the answers they need directly from their data, without waiting for technical support.
 
-The Amazon Nova family comprises four types of models:
+Amazon Bedrock offers a range of FMs, each designed for specific use cases. Among these, [Amazon Nova](https://aws.amazon.com/ai/generative-ai/nova/) stands out as the next-generation FM from Amazon, delivering frontier intelligence and industry-leading price-performance. At its core, the Amazon Nova family consists of four distinct types of models, each serving unique business needs. The understanding models (available in Micro, Lite, Pro, and Premier variants) act as sophisticated interpreters of human language, with Amazon Nova Premier offering the most advanced capabilities for complex data analysis. Complementing these are the content generation models, [Amazon Nova Canvas](https://aws.amazon.com/ai/generative-ai/nova/creative/) and [Amazon Nova Reel](https://aws.amazon.com/ai/generative-ai/nova/creative/), which handle creative and content production tasks. There is also a speech-to-speech model, Amazon Nova Sonic. Lastly, the Amazon Nova family offers Amazon Nova Act, a model trained to perform actions in a web browser.
 
-* Understanding models – Available in Micro, Lite, Pro, and Premier variants
-* Content generation models – Featuring Canvas and Reel
-* Speech-to-Speech models – Featuring Nova Sonic for real-time voice interaction capabilities
-* Action models – Featuring Nova Act for autonomous task execution
+What makes Amazon Nova particularly powerful for our Athena query solution is its exceptional ability to handle complex reasoning tasks, generate precise text, and provide accurate summarizations. These capabilities are essential when translating natural language questions into SQL queries and explaining results back to users in clear, understandable terms.
 
-These models are specifically optimized for enterprise and business applications, excelling in the following capabilities:
+The Amazon Nova family’s combination of sophisticated features and competitive pricing makes it an ideal choice for businesses looking to bridge the gap between technical data systems and non-technical users.
 
-* Text generation
-* Summarization
-* Complex reasoning tasks
-* Content creation
-* Real-time voice interactions (Nova Sonic)
-* Autonomous task execution (Nova Act)
-
-This makes Amazon Nova ideal for building intelligent data interfaces that bridge the gap between business users and technical data systems.
-
-A key advantage of the Amazon Nova model family is its [industry-leading price-performance ratio](https://aws.amazon.com/blogs/aws/introducing-amazon-nova-frontier-intelligence-and-industry-leading-price-performance/). Compared to other enterprise-grade AI models, Amazon Nova offers comparable or superior capabilities at a more competitive price point, making it an attractive choice for organizations looking to democratize data access.
+In this post, we explore an innovative solution that uses Amazon Bedrock Agents, powered by Amazon Nova Lite, to create a conversational interface for Athena queries. We use AWS Cost and Usage Reports (AWS CUR) as an example, but this solution can be adapted for other databases you query using Athena. This approach democratizes data access while preserving the powerful analytical capabilities of Athena, so you can interact with your data using natural language.
 
 ## Solution overview
 
