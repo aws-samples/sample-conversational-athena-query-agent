@@ -133,7 +133,7 @@ After the CloudFormation template deployment, copy the following from the Output
 * `BedrockAgentAliasId`
 * `BedrockAgentId`
 * `BedrockAgentName`
-*  DataSourceS3Buckets`
+* `DataSourceS3Buckets`
 * `IdentityPoolId`
 * `Username`
 * `UserPoolClientId`
