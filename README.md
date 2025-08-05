@@ -69,6 +69,31 @@ The workflow consists of the following steps:
 
 This architecture provides secure, efficient query processing while maintaining a simple, conversation-like experience for users. The system scales automatically and maintains security through role-based access controls and secure credential management.
 
+## Prerequisites
+
+You must have the following in place to complete the solution in this post:
+
+* An [AWS account](https://signin.aws.amazon.com/signin?redirect_uri=https%3A%2F%2Fportal.aws.amazon.com%2Fbilling%2Fsignup%2Fresume&amp;client_id=signup)
+* FM [access](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html) in Amazon Bedrock for Amazon Nova Lite in the same [AWS Region](https://docs.aws.amazon.com/glossary/latest/reference/glos-chap.html#region) where you will deploy this solution
+* The accompanying [AWS CloudFormation](http://aws.amazon.com/cloudformation) template downloaded from the [aws-samples GitHub repo](https://github.com/aws-samples/sample-conversational-athena-query-agent)
+
+Perform the following steps to set up AWS CUR 2.0 and Athena integration to AWS CUR 2.0 only if you haven’t completed this setup already. If you have the AWS CUR 2.0 set up and its integration with Athena, collect the database name and table name and proceed to the next section to deploy the solution.
+
+* AWS CUR 2.0 set up:
+  * [Create an AWS CUR 2.0 report](https://docs.aws.amazon.com/cur/latest/userguide/what-is-data-exports.html).
+  * Wait for the first report to be delivered to your [Amazon Simple Storage Service](http://aws.amazon.com/s3) (Amazon S3) bucket. It can take up to 24 hours for AWS to deliver your first report.
+* Athena integration to AWS CUR 2.0: The CloudFormation template [cur2-glue-athena-integration](https://github.com/aws-samples/sample-conversational-athena-query-agent/blob/main/deployment/cur2-glue-athena-integration.yml) is designed to automate the integration of AWS CUR 2.0 with Athena. The template includes an AWS   Glue crawler, an AWS Glue database, and a Lambda event. During the CloudFormation template deployment, specify the following required parameters:
+  * `CURReportName` – Name of the AWS CUR 2.0 report created.
+  * `S3BucketName` – Destination S3 bucket name for the AWS CUR 2.0 report.
+  * `S3BucketPath` – Amazon S3 path of the bucket (`cur-report-path-prefix/cur-report-name/data`).
+
+After the CloudFormation template deployment, copy the following from the Outputs tab on the AWS CloudFormation console to use during the deployment of next CloudFormation template as inputs:
+
+* `GlueDatabaseName`
+* `ExpectedCURTableName`
+
+The following screenshot shows an example of the Outputs tab.
+
 ## AWS services in this solution
 
 | AWS service | Description |
