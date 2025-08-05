@@ -100,6 +100,47 @@ The following screenshot shows an example of the Outputs tab.
 
 The CloudFormation template [conversational-query-agent](https://github.com/aws-samples/sample-conversational-athena-query-agent/blob/main/deployment/conversational-query-agent.yml) is designed to run in the us-east-1 Region. If you deploy in a different Region, you must configure cross-Region [inference profiles](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-create.html) to have proper functionality and update the CloudFormation template accordingly.
 
+During the CloudFormation template deployment, specify the following required parameters:
+
+* Stack name
+* Foundation model (`amazon.nova-lite-v1:0 or amazon.nova-v1:0`)
+* Valid user email address
+* Database name (`GlueDatabaseName` from the stack output)
+* Table name (`ExpectedCURTableName` from the stack output)
+* Data source S3 bucket name (AWS CUR 2.0 S3 bucket)
+* Athena query results S3 bucket name (provide a new or existing S3 bucket name depending on if the parameter to create an Athena query results S3 bucket is `false` or `true`)
+* Parameter to create an Athena query results S3 bucket (`true` or `false`)
+
+AWS resource usage will incur costs. When deployment is complete, the following resources will be deployed:
+
+* Amazon Cognito resources:
+  * [User pool](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools.html) – `CognitoUserPoolforAthenaQueryApp`
+  * [App client](https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-settings-client-apps.html) – `AthenaQueryApp`
+  * [Identity pool](https://docs.aws.amazon.com/cognito/latest/developerguide/identity-pools.html) – `cognito-identity-pool-athenaquery`
+  * [Groups](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-user-groups.html) – `AthenaQuery`
+  * [User](https://docs.aws.amazon.com/cognito/latest/developerguide/managing-users.html) – Athena Query User
+* Lambda functions:
+  * `BuildandRunAthenaQuery`
+  * `ClockandCalendar`
+* Amazon Bedrock agents:
+  * `ConversationalQueryAgent` with action groups:
+     * `BuildandRunAthenaQueryActionGroup`
+     * `ClockandCalendarActionGroup`
+
+After the CloudFormation template deployment, copy the following from the Outputs tab on the AWS CloudFormation console to use during the configuration of your application after it’s deployed in Amplify:
+
+* `AWSRegion`
+* `BedrockAgentAliasId`
+* `BedrockAgentId`
+* `BedrockAgentName`
+*  DataSourceS3Buckets`
+* `IdentityPoolId`
+* `Username`
+* `UserPoolClientId`
+* `UserPoolId`
+
+The following screenshot shows an example of the Outputs tab.
+
 ## AWS services in this solution
 
 | AWS service | Description |
