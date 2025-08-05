@@ -61,8 +61,8 @@ The workflow consists of the following steps:
 2. Authentication is handled through Amazon Cognito, which verifies user identities and provides temporary AWS credentials from its identity pool.
 3. After users are authenticated, they can send natural language queries through the interface.
 4. Our conversational query agent, powered by Amazon Bedrock with Amazon Nova Lite, processes these queries with support from two key action groups:
-   * A Clock and Calendar action group that provides temporal context.
-   * A Build and Run Athena Query action group that handles query execution.
+  * A Clock and Calendar action group that provides temporal context.
+  * A Build and Run Athena Query action group that handles query execution.
 5. When a user submits a query, Amazon Nova Lite transforms it into SQL, which is then passed to the appropriate Lambda function.
 6. The Lambda function, operating with the necessary [AWS Identity and Access Management](https://aws.amazon.com/iam/) (IAM) roles, executes the SQL query in Athena.
 7. Athena processes the query against data cataloged in [AWS Glue](https://aws.amazon.com/glue), retrieving results that are then formatted and returned to the user through the same conversational interface.
