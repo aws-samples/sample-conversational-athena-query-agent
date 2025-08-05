@@ -94,6 +94,12 @@ After the CloudFormation template deployment, copy the following from the Output
 
 The following screenshot shows an example of the Outputs tab.
 
+![cfn-cur2-glue-athena-integration-outputs](assets/cfn-cur2-glue-athena-integration-outputs.png)
+
+## Deploy solution resources using AWS CloudFormation
+
+The CloudFormation template [conversational-query-agent](https://github.com/aws-samples/sample-conversational-athena-query-agent/blob/main/deployment/conversational-query-agent.yml) is designed to run in the us-east-1 Region. If you deploy in a different Region, you must configure cross-Region [inference profiles](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-create.html) to have proper functionality and update the CloudFormation template accordingly.
+
 ## AWS services in this solution
 
 | AWS service | Description |
