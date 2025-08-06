@@ -9,7 +9,7 @@
 - 📋 [Overview](#overview)
 - 🏗️ [Solution overview](#solution-overview)
 - ✅ [Prerequisites](#prerequisites)
-- 🚀 [Deploy solution resources using AWS CloudFormation](#deploy-the-solution-resources-using-aws-cloudformation)
+- 🚀 [Deploy solution resources using AWS CloudFormation](#deploy-solution-resources-using-aws-cloudformation)
 - ☁️ [AWS services in this solution](#aws-services-in-this-solution)
 - 💰 [Cost](#cost)
 - 🔒 [Security](#security)
