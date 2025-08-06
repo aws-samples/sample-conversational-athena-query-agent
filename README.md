@@ -9,11 +9,11 @@
 - 📋 [Overview](#overview)
 - 🏗️ [Solution overview](#solution-overview)
 - ✅ [Prerequisites](#prerequisites)
+- 🚀 [Deploy solution resources using AWS CloudFormation](#deploy-the-solution)
 - ☁️ [AWS services in this solution](#aws-services-in-this-solution)
 - 💰 [Cost](#cost)
 - 🔒 [Security](#security)
 - 🌎 [Supported AWS Regions](#supported-aws-regions)
-- 🚀 [Deploy the solution](#deploy-the-solution)
 - 💡 [Considerations](#considerations)
 - 📝 [Conclusion](#conclusion)
 - 📚 [Additional resources](#additional-resources)
@@ -175,6 +175,35 @@ Amplify provides a streamlined solution for deploying and hosting web applicatio
 To validate the solution before using the Amplify deployed frontend, we can conduct testing directly on the Amazon Bedrock console. By navigating to the `ConversationalQueryAgent`, we can pose questions about cost analysis, such as “What are my Top 5 Services cost in each month of first quarter of 2025?” The `ConversationalQueryAgent` processes the request by first determining the correct time period through `ClockandCalendarActionGroup`, then constructs and executes appropriate SQL queries through `BuildandRunAthenaQueryActionGroup` to retrieve the requested cost information. The agent formats the response to provide the month-wise cost of the top 5 services in the first quarter of 2025.
 
 ![conversational-query-bedrock-agent-console](assets/conversational-query-bedrock-agent-console.gif)
+
+After you set up the application in Amplify, navigate to the specified URL. When you access the application URL, you must provide Amazon Cognito and Amazon Bedrock Agents related details that facilitate secure user authentication and establish a connection between the frontend and the agent. This setup enables the application to manage user sessions and make authorized API calls to AWS services on behalf of the user.
+
+You can enter information with the values you collected from the CloudFormation stack outputs. You will be required to enter the following fields, as shown in the following screenshot:
+
+* User Pool ID
+* User Pool Client ID
+* Identity Pool ID
+* Region
+* Agent Name
+* Agent ID
+* Agent Alias ID
+* Region
+  
+![cognito-frontend](assets/cognito-frontend.png)
+
+Sign in with your user name and password. A temporary password was automatically generated during deployment and sent to the email address you provided when launching the CloudFormation template. At first sign-in attempt, you will be asked to reset your password.
+
+![cognito-frontend-login](assets/ccognito-frontend-login.gif)
+
+Now you can ask the same question in the frontend application, for example, “What are my Top 5 Services cost in each month of first quarter of 2025?” In a few seconds, the application will provide you detailed results for the question asked.
+
+![conversational-query-agent-front-end](assets/conversational-query-agent-front-end.gif)
+
+The following are a few additional sample queries to demonstrate the capabilities of this tool:
+
+* What was my costliest Region in 2024?
+* Out of all 4 quarters, which one was the costliest one in 2024?
+* What is the cost of S3, VPC, and Guard duty in Q4 2024?
 
 ## AWS services in this solution
 
