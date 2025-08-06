@@ -13,12 +13,11 @@
 - ☁️ [AWS services in this solution](#aws-services-in-this-solution)
 - 💰 [Cost](#cost)
 - 🔒 [Security](#security)
-- 🌎 [Supported AWS Regions](#supported-aws-regions)
+- 🛠️ [Adapting the solution for other Amazon S3 backed Athena databases](#adapting-the-solution-for-other-amazon-s3-backed-athena-databases)
+- 🧹 [Cleanup](#cleanup)
 - 💡 [Considerations](#considerations)
 - 📝 [Conclusion](#conclusion)
 - 📚 [Additional resources](#additional-resources)
-- ➡️ [Next Steps](#next-steps)
-- ❓ [FAQ, Known Issues, Additional Considerations, and Limitations](#faq-known-issues-additional-considerations-and-limitations)
 - 📋 [Revisions](#revisions)
 - ⚠️ [Notices](#notices)
 - 👥 [Authors](#authors)
@@ -251,23 +250,11 @@ This solution implements the following security features:
 - **IAM roles and policies** - Provides least-privilege permissions for Lambda functions and other AWS services
 - **Secure API communication** - All communication between components uses HTTPS encryption
 
-## Supported AWS Regions
-
-"Build a Conversational Natural Language Interface for Amazon Athena Queries using Amazon Nova Model" is supported in the following AWS Regions (as of July 2025):
-
-| **Region Name** | |
-|-----------|------------|
-|US East (Ohio) | Asia Pacific (Seoul) |
-|US East (N. Virginia) | Europe (Paris) |
-|US West (Northern California) | Middle East (Bahrain) |
-|US West (Oregon) | AWS GovCloud (US-West) |
-|Africa (Cape Town) | Asia Pacific (Seoul) |
-
-### Adapting the Solution for Other S3-Backed Athena Databases
+## Adapting the Solution for Other S3-Backed Athena Databases
 
 While this solution is specifically designed for AWS Cost and Usage Report (CUR) 2.0 data, it can be easily adapted for any S3-backed Athena database by modifying key sections in the Amazon Bedrock agent instructions:
 
-* Replace the entire "CUR Query Column List" section (which contains all the CUR-specific column definitions like bill_payer_account_id, line_item_unblended_cost, etc.) with your own table's column names and descriptions.
+* Replace the entire "CUR Query Column List" section (which contains all the CUR-specific column definitions like `bill_payer_account_id`, `line_item_unblended_cost`, etc.) with your own table's column names and descriptions.
 
 * Modify the "AWS Service Names" section to reflect the specific services or categories relevant to your data domain or remove it entirely if not applicable.
 
@@ -277,10 +264,9 @@ While this solution is specifically designed for AWS Cost and Usage Report (CUR)
 
 The core query construction principles, date handling, error prevention, and response formatting sections can remain largely unchanged as they provide universal best practices for Athena querying through conversational AI. 
 
+## Clean up
 
-### Clean up
-
-If you decide to discontinue using the ConversationalQueryAgent application, you can follow these steps to remove it, its associated resources deployed using AWS CloudFormation, and the Amplify deployment:
+If you decide to discontinue using the `ConversationalQueryAgent` application, you can follow these steps to remove it, its associated resources deployed using AWS CloudFormation, and the Amplify deployment:
 
 1. **Delete the CloudFormation stack:**
    * On the AWS CloudFormation console, choose Stacks in the navigation pane.
@@ -291,13 +277,9 @@ If you decide to discontinue using the ConversationalQueryAgent application, you
 
 ## Considerations
 
-For optimal performance, ensure your Amazon S3 data is properly partitioned and formatted (preferably in Parquet format) to minimize query costs and improve response times.
+For optimal visibility across your organization, deploy this Amazon Bedrock agent-powered Athena query solution in your AWS payer account to seamlessly access and analyze cost data from your AWS CUR database. This integration demonstrates how Amazon Bedrock agents can execute complex analytical queries against Athena databases, providing conversational access to your organization’s data while maintaining comprehensive visibility across all linked accounts.
 
-Consider implementing query result caching to reduce costs and improve response times for frequently asked questions.
-
-Before deploying to production, enhance security by implementing additional safeguards such as query complexity limits and data access controls based on user roles.
-
-Monitor Amazon Bedrock token usage to optimize costs, especially for complex natural language interactions that may require multiple model invocations.
+Before deploying to production, enhance security by implementing additional safeguards. You can do this by associating [guardrails](https://docs.aws.amazon.com/bedrock/latest/userguide/agents-guardrail.html) with your agent in [Amazon Bedrock Guardrails]("https://aws.amazon.com/bedrock/guardrails/).
 
 ## Conclusion
 
@@ -312,40 +294,6 @@ To learn more about the technologies used in this solution, refer to the followi
 * [Amazon Bedrock User Guide](https://docs.aws.amazon.com/bedrock/latest/userguide/)
 * [Best Practices for Amazon Athena](https://docs.aws.amazon.com/athena/latest/ug/best-practices.html)
 * [Introducing Amazon Nova foundation models: Frontier intelligence and industry leading price performance](https://aws.amazon.com/blogs/aws/introducing-amazon-nova-frontier-intelligence-and-industry-leading-price-performance/)
-
-## Next Steps
-
-To further enhance the solution's capabilities, consider implementing the following features:
-
-* **Advanced Analytics Integration** – Connect with Amazon QuickSight for visual data representation
-* **Multi-Database Support** – Extend the solution to work with other AWS data services like Amazon Redshift
-* **Query Optimization** – Implement intelligent query optimization based on historical usage patterns
-* **Voice Interface** – Add voice input capabilities using Amazon Transcribe
-* **Automated Insights** – Integrate with Amazon Forecast for predictive analytics capabilities
-
-## FAQ, Known Issues, Additional Considerations, and Limitations
-
-**Frequently Asked Questions:**
-
-Q: Can this solution work with existing Amazon Athena tables and databases?
-A: Yes, the solution can be configured to work with your existing Athena catalogs, databases, and tables.
-
-Q: What types of natural language questions are supported?
-A: The solution supports a wide range of analytical questions including aggregations, filtering, grouping, and time-based queries.
-
-**Known Issues:**
-- Complex nested queries may require multiple iterations for optimal results
-- Very large result sets may experience timeout issues
-
-**Additional Considerations:**
-- Amazon Bedrock requests are charged per token
-- Amazon Athena charges are based on data scanned per query
-- Consider implementing result caching for frequently asked questions
-
-**Limitations:**
-- Natural language processing accuracy depends on data schema complexity
-- Some advanced SQL features may not be accessible through natural language
-- Query performance is dependent on underlying data organization in S3
 
 ## Revisions
 
