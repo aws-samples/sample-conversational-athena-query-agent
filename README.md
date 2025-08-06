@@ -61,8 +61,8 @@ The workflow consists of the following steps:
 2. Authentication is handled through Amazon Cognito, which verifies user identities and provides temporary AWS credentials from its identity pool.
 3. After users are authenticated, they can send natural language queries through the interface.
 4. Our conversational query agent, powered by Amazon Bedrock with Amazon Nova Lite, processes these queries with support from two key action groups:
-  * A Clock and Calendar action group that provides temporal context.
-  * A Build and Run Athena Query action group that handles query execution.
+   * A Clock and Calendar action group that provides temporal context.
+   * A Build and Run Athena Query action group that handles query execution.
 5. When a user submits a query, Amazon Nova Lite transforms it into SQL, which is then passed to the appropriate Lambda function.
 6. The Lambda function, operating with the necessary [AWS Identity and Access Management](https://aws.amazon.com/iam/) (IAM) roles, executes the SQL query in Athena.
 7. Athena processes the query against data cataloged in [AWS Glue](https://aws.amazon.com/glue), retrieving results that are then formatted and returned to the user through the same conversational interface.
@@ -140,6 +140,41 @@ After the CloudFormation template deployment, copy the following from the Output
 * `UserPoolId`
 
 The following screenshot shows an example of the Outputs tab.
+
+![cfn-conversational-query-agent-outputs](assets/cfn-conversational-query-agent-outputs.png)
+
+## Deploy the Amplify application
+
+You must manually deploy the Amplify application using the frontend code found on GitHub. Complete the following steps:
+
+* Download the frontend code `AWS-Amplify-Frontend.zip` from [GitHub](https://github.com/aws-samples/sample-conversational-athena-query-agent/tree/main/deployment).
+* Use the .zip file to manually [deploy](https://docs.aws.amazon.com/amplify/latest/userguide/manual-deploys.html) the application in Amplify.
+* Return to the Amplify console page and use the domain it automatically generated to access the application.
+
+## Secure access with Amazon Cognito
+
+The application’s security and access management are built on the Amazon Cognito authentication framework. Through the implementation of Amazon Cognito user pools, the system manages user authentication and group organization, and Amazon Cognito identity pools distribute temporary AWS credentials that align with designated IAM roles. This architecture makes sure the Amazon Bedrock Agents API and overall application remain accessible exclusively to authenticated team members, delivering strong security controls without compromising user experience.
+
+## Amazon Bedrock Agents for conversational Athena queries
+
+The Amazon Bedrock Agents architecture facilitates data analysis through natural language interactions with AWS CUR data stored in the [AWS Glue Data Catalog](https://docs.aws.amazon.com/prescriptive-guidance/latest/serverless-etl-aws-glue/aws-glue-data-catalog.html) and accessed using Athena. This agent uses Amazon’s FMs like Amazon Nova Lite to interpret complex cost analysis requests, transform them into precise SQL queries, and present results in a user-friendly format. The agent coordinates with specialized action groups: `ClockandCalendarActionGroup` for accurate date calculations and `BuildandRunAthenaQueryActionGroup` for executing optimized Athena queries against AWS CUR data. With comprehensive knowledge of AWS service naming conventions and AWS CUR schema details, the agent handles complex date ranges, cost calculations, and service-specific queries while maintaining security through Amazon Cognito authentication. This architecture demonstrates how Amazon Bedrock Agents can bridge the gap between natural language requests and technical database queries, helping users gain financial insights through simple conversations without needing SQL expertise or deep knowledge of the underlying data structure.
+
+## Lambda functions for Amazon Bedrock action groups
+
+As part of this solution, Lambda functions are deployed to support the action groups defined for the `ConversationalQueryAgent`. These functions enable the agent to perform complex queries on AWS CUR data and provide temporal context for accurate analysis.
+
+The action group `ConversationalQueryAgent` uses two distinct Lambda backed action groups to deliver comprehensive cost analysis capabilities. The `ClockandCalendar` Lambda function provides current date and time functionality. This capability makes sure the agent has access to accurate temporal information, which is crucial for generating time-sensitive reports and aligning cost analyses with specific billing periods or custom timeframes.
+
+The `BuildandRunAthenaQuery` Lambda function serves as the core for the agent’s analytical capabilities. This function connects directly with Athena to execute SQL queries against the AWS CUR data. For demonstration purposes, we use a database named `cid-cur` with a `data` table that contains the AWS CUR 2.0 information. The function processes these queries and returns formatted results that are straightforward to interpret and analyze.
+
+## Amplify for frontend
+
+Amplify provides a streamlined solution for deploying and hosting web applications with built-in security and scalability features. The service reduces the complexity of managing infrastructure, so developers can concentrate on application development. In our solution, we use the manual deployment capabilities of Amplify to host our frontend application code.
+
+## Amazon Bedrock Agents testing
+To validate the solution before using the Amplify deployed frontend, we can conduct testing directly on the Amazon Bedrock console. By navigating to the `ConversationalQueryAgent`, we can pose questions about cost analysis, such as “What are my Top 5 Services cost in each month of first quarter of 2025?” The `ConversationalQueryAgent` processes the request by first determining the correct time period through `ClockandCalendarActionGroup`, then constructs and executes appropriate SQL queries through `BuildandRunAthenaQueryActionGroup` to retrieve the requested cost information. The agent formats the response to provide the month-wise cost of the top 5 services in the first quarter of 2025.
+
+![conversational-query-bedrock-agent-console](assets/conversational-query-bedrock-agent-console.gif)
 
 ## AWS services in this solution
 
