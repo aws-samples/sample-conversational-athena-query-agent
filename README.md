@@ -250,7 +250,7 @@ This solution implements the following security features:
 - **IAM roles and policies** - Provides least-privilege permissions for Lambda functions and other AWS services
 - **Secure API communication** - All communication between components uses HTTPS encryption
 
-## Adapting the Solution for Other S3-Backed Athena Databases
+## Adapting the solution for other Amazon S3 backed Athena databases
 
 While this solution is specifically designed for AWS Cost and Usage Report (CUR) 2.0 data, it can be easily adapted for any S3-backed Athena database by modifying key sections in the Amazon Bedrock agent instructions:
 
