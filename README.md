@@ -14,7 +14,7 @@
 - 💰 [Cost](#cost)
 - 🔒 [Security](#security)
 - 🛠️ [Adapting the solution for other Amazon S3 backed Athena databases](#adapting-the-solution-for-other-amazon-s3-backed-athena-databases)
-- 🧹 [Cleanup](#cleanup)
+- 🧹 [Clean up](#clean-up)
 - 💡 [Considerations](#considerations)
 - 📝 [Conclusion](#conclusion)
 - 📚 [Additional resources](#additional-resources)
